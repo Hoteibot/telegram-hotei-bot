@@ -38,15 +38,15 @@ def telegram_webhook():
             show_symbol_keyboard(chat_id)
 
         elif text in SYMBOL_LIST:
-            user_state[chat_id]['symbol'] = text
+            user_state.setdefault(chat_id, {})['symbol'] = text
             show_timeframe_keyboard(chat_id)
 
         elif text in ["M1", "M5", "M15"]:
-            user_state[chat_id]['timeframe'] = text
+            user_state.setdefault(chat_id, {})['timeframe'] = text
             show_expiration_keyboard(chat_id)
 
         elif text in ["3мин", "5мин", "7мин"]:
-            user_state[chat_id]['expiration'] = text
+            user_state.setdefault(chat_id, {})['expiration'] = text
             send_telegram_message("🔍 Выполняю анализ...", chat_id)
             run_gpt_analysis(chat_id)
 
