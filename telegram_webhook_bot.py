@@ -130,9 +130,13 @@ def run_gpt_analysis(chat_id):
             temperature=0.7
         )
         reply = response['choices'][0]['message']['content']
-        send_telegram_message(f"📊 GPT-АНАЛИЗ:\n{reply}", chat_id)
+        send_telegram_message(f"📊 GPT-АНАЛИЗ:
+{reply}", chat_id)
+        show_symbol_keyboard(chat_id)
     except Exception as e:
-        send_telegram_message(f"⚠️ GPT-ошибка:\n{str(e)}", chat_id)
+        send_telegram_message(f"⚠️ GPT-ошибка:
+{str(e)}", chat_id)
+        show_symbol_keyboard(chat_id)
 
 # === Render Index ===
 @app.route('/', methods=['GET'])
