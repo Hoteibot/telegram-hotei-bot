@@ -34,9 +34,10 @@ def telegram_webhook():
 
         if text == "/start":
             user_state[chat_id] = {}
+            send_telegram_message("Привет! Я Hotei-bot-Аналитик. Вы спрашиваете — я отвечаю. Жми на /start", chat_id)
             show_symbol_keyboard(chat_id)
 
-        elif text in ["EUR/USD", "GBP/USD", "USD/JPY"]:
+        elif text in SYMBOL_LIST:
             user_state[chat_id]['symbol'] = text
             show_timeframe_keyboard(chat_id)
 
@@ -50,14 +51,37 @@ def telegram_webhook():
             run_gpt_analysis(chat_id)
 
         else:
-            send_telegram_message("Нажми /start, чтобы начать анализ", chat_id)
+            keyboard = {
+                "keyboard": [[{"text": "/start"}]],
+                "resize_keyboard": True
+            }
+            send_telegram_message("Привет! Я Hotei-bot-Аналитик. Вы спрашиваете — я отвечаю. Жми на /start", chat_id, reply_markup=keyboard)
 
     return 'OK', 200
 
+# === Список валютных пар ===
+SYMBOL_LIST = [
+    "AUD/JPY", "AUD/CHF", "AUD/CAD", "AUD/USD",
+    "GBP/CAD", "GBP/CHF", "GBP/AUD", "GBP/JPY", "GBP/USD",
+    "EUR/USD", "EUR/GBP", "EUR/CAD", "EUR/AUD", "EUR/JPY", "EUR/CHF",
+    "USD/JPY", "USD/CAD", "USD/CHF",
+    "CAD/CHF", "CAD/JPY", "CHF/JPY"
+]
+
 # === Показываем кнопки ===
 def show_symbol_keyboard(chat_id):
+    keyboard_rows = []
+    row = []
+    for i, symbol in enumerate(SYMBOL_LIST, 1):
+        row.append({"text": symbol})
+        if i % 3 == 0:
+            keyboard_rows.append(row)
+            row = []
+    if row:
+        keyboard_rows.append(row)
+
     keyboard = {
-        "keyboard": [[{"text": "EUR/USD"}, {"text": "GBP/USD"}, {"text": "USD/JPY"}]],
+        "keyboard": keyboard_rows,
         "one_time_keyboard": True,
         "resize_keyboard": True
     }
