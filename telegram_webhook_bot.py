@@ -50,7 +50,7 @@ def telegram_webhook():
             send_telegram_message("🔍 Выполняю анализ...", chat_id)
             run_gpt_analysis(chat_id)
 
-        elif text == "🔁 Новый запрос":
+        elif text == "🔁 Новый запрос" or text == "Готов к новому анализу:":
             user_state[chat_id] = {}
             show_symbol_keyboard(chat_id)
 
@@ -153,3 +153,4 @@ def index():
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
+
