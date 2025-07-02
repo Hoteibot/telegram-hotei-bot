@@ -138,16 +138,10 @@ def run_gpt_analysis(chat_id):
             "keyboard": [[{"text": "🔁 Новый запрос"}]],
             "resize_keyboard": True
         }
-        send_telegram_message(f"📊 GPT-АНАЛИЗ:
-{reply}", chat_id)
+        send_telegram_message(f"📊 GPT-АНАЛИЗ:\n{reply}", chat_id)
         send_telegram_message("Готов к новому анализу:", chat_id, reply_markup=keyboard)
     except Exception as e:
-        send_telegram_message(f"⚠️ GPT-ошибка:
-{str(e)}", chat_id)
-        show_symbol_keyboard(chat_id)
-    except Exception as e:
-        send_telegram_message(f"⚠️ GPT-ошибка:
-{str(e)}", chat_id)
+        send_telegram_message(f"⚠️ GPT-ошибка:\n{str(e)}", chat_id)
         show_symbol_keyboard(chat_id)
 
 # === Render Index ===
