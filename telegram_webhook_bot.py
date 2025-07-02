@@ -70,6 +70,7 @@ SYMBOL_LIST = [
 
 # === Показываем кнопки ===
 def show_symbol_keyboard(chat_id):
+    # Разбиваем валютные пары на 3 кнопки в строке
     keyboard_rows = []
     row = []
     for i, symbol in enumerate(SYMBOL_LIST, 1):
@@ -82,7 +83,6 @@ def show_symbol_keyboard(chat_id):
 
     keyboard = {
         "keyboard": keyboard_rows,
-        "one_time_keyboard": True,
         "resize_keyboard": True
     }
     send_telegram_message("Выбери валютную пару:", chat_id, reply_markup=keyboard)
