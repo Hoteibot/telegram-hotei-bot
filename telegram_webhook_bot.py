@@ -50,6 +50,10 @@ def telegram_webhook():
             send_telegram_message("🔍 Выполняю анализ...", chat_id)
             run_gpt_analysis(chat_id)
 
+        elif text == "🔁 Новый запрос":
+            user_state[chat_id] = {}
+            show_symbol_keyboard(chat_id)
+
         else:
             keyboard = {
                 "keyboard": [[{"text": "/start"}]],
@@ -130,8 +134,16 @@ def run_gpt_analysis(chat_id):
             temperature=0.7
         )
         reply = response['choices'][0]['message']['content']
+        keyboard = {
+            "keyboard": [[{"text": "🔁 Новый запрос"}]],
+            "resize_keyboard": True
+        }
         send_telegram_message(f"📊 GPT-АНАЛИЗ:
 {reply}", chat_id)
+        send_telegram_message("Готов к новому анализу:", chat_id, reply_markup=keyboard)
+    except Exception as e:
+        send_telegram_message(f"⚠️ GPT-ошибка:
+{str(e)}", chat_id)
         show_symbol_keyboard(chat_id)
     except Exception as e:
         send_telegram_message(f"⚠️ GPT-ошибка:
