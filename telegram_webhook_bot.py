@@ -5,50 +5,92 @@ import openai
 
 app = Flask(__name__)
 
-# === Переменные среды ===
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
-CHAT_ID = os.environ.get("CHAT_ID")
 openai.api_key = os.environ.get("OPENAI_API_KEY")
 
-# === Отправка сообщения в Telegram ===
-def send_telegram_message(message, chat_id=None):
+# === Память для выбора пользователя ===
+user_state = {}
+
+# === Отправка сообщения в Telegram с кнопками ===
+def send_telegram_message(message, chat_id, reply_markup=None):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     data = {
-        "chat_id": chat_id or CHAT_ID,
+        "chat_id": chat_id,
         "text": message,
         "parse_mode": "HTML"
     }
-    requests.post(url, data=data)
+    if reply_markup:
+        data["reply_markup"] = reply_markup
+    requests.post(url, json=data)
 
-# === Главная страница ===
-@app.route('/', methods=['GET'])
-def index():
-    return 'Бот работает', 200
-
-# === Webhook от TradingView ===
-@app.route('/webhook', methods=['POST'])
-def webhook():
+# === Webhook Telegram ===
+@app.route('/telegram', methods=['POST'])
+def telegram_webhook():
     data = request.json
-    message = data.get('message', '📈 Сигнал от TradingView!')
-    send_telegram_message(f"📢 <b>Сигнал:</b> {message}")
+
+    if 'message' in data:
+        chat_id = data['message']['chat']['id']
+        text = data['message'].get('text', '')
+
+        if text == "/start":
+            user_state[chat_id] = {}
+            show_symbol_keyboard(chat_id)
+
+        elif text in ["EUR/USD", "GBP/USD", "USD/JPY"]:
+            user_state[chat_id]['symbol'] = text
+            show_timeframe_keyboard(chat_id)
+
+        elif text in ["M1", "M5", "M15"]:
+            user_state[chat_id]['timeframe'] = text
+            show_expiration_keyboard(chat_id)
+
+        elif text in ["3мин", "5мин", "7мин"]:
+            user_state[chat_id]['expiration'] = text
+            send_telegram_message("🔍 Выполняю анализ...", chat_id)
+            run_gpt_analysis(chat_id)
+
+        else:
+            send_telegram_message("Нажми /start, чтобы начать анализ", chat_id)
+
     return 'OK', 200
 
-# === Обработка GPT-запроса от внешнего сервиса ===
-@app.route('/gpt', methods=['POST'])
-def gpt_analysis():
-    send_telegram_message("👀 Получен внешний запрос на GPT-анализ...")
+# === Показываем кнопки ===
+def show_symbol_keyboard(chat_id):
+    keyboard = {
+        "keyboard": [[{"text": "EUR/USD"}, {"text": "GBP/USD"}, {"text": "USD/JPY"}]],
+        "one_time_keyboard": True,
+        "resize_keyboard": True
+    }
+    send_telegram_message("Выбери валютную пару:", chat_id, reply_markup=keyboard)
 
-    data = request.json
-    symbol = data.get("symbol", "EUR/USD")
-    timeframe = data.get("timeframe", "M5")
-    expiration = data.get("expiration", "5 минут")
-    market_open = data.get("market_open", True)
+def show_timeframe_keyboard(chat_id):
+    keyboard = {
+        "keyboard": [[{"text": "M1"}, {"text": "M5"}, {"text": "M15"}]],
+        "one_time_keyboard": True,
+        "resize_keyboard": True
+    }
+    send_telegram_message("Выбери таймфрейм:", chat_id, reply_markup=keyboard)
+
+def show_expiration_keyboard(chat_id):
+    keyboard = {
+        "keyboard": [[{"text": "3мин"}, {"text": "5мин"}, {"text": "7мин"}]],
+        "one_time_keyboard": True,
+        "resize_keyboard": True
+    }
+    send_telegram_message("Выбери время экспирации:", chat_id, reply_markup=keyboard)
+
+# === Запуск GPT анализа ===
+def run_gpt_analysis(chat_id):
+    state = user_state.get(chat_id, {})
+    symbol = state.get("symbol", "EUR/USD")
+    timeframe = state.get("timeframe", "M5")
+    expiration = state.get("expiration", "5мин")
 
     prompt = f"""
     Проанализируй валютную пару {symbol}.
     Таймфрейм: {timeframe}.
     Экспирация опциона: {expiration}.
-    Рынок {'открыт' if market_open else 'закрыт'}.
+    Рынок открыт.
     Используй стратегию: тренд по M30, вход по M5, VRVP, MA, уровни S/R, свечные паттерны.
     Выдай точку входа и краткое обоснование.
     """
@@ -64,57 +106,16 @@ def gpt_analysis():
             temperature=0.7
         )
         reply = response['choices'][0]['message']['content']
-        send_telegram_message(f"📊 GPT-АНАЛИЗ:\n{reply}")
-        return 'OK', 200
+        send_telegram_message(f"📊 GPT-АНАЛИЗ:\n{reply}", chat_id)
     except Exception as e:
-        send_telegram_message(f"⚠️ Ошибка GPT:\n{str(e)}")
-        return 'Ошибка', 500
+        send_telegram_message(f"⚠️ GPT-ошибка:\n{str(e)}", chat_id)
 
-# === Обработка сообщений из Telegram ===
-@app.route('/telegram', methods=['POST'])
-def telegram_webhook():
-    data = request.json
+# === Render Index ===
+@app.route('/', methods=['GET'])
+def index():
+    return 'Бот работает', 200
 
-    if 'message' in data:
-        message = data['message']
-        chat_id = message['chat']['id']
-        text = message.get('text', '')
-
-        if text.startswith('/анализ'):
-            parts = text.strip().split()
-            if len(parts) == 4:
-                _, symbol, timeframe, expiration = parts
-
-                prompt = f"""
-                Проанализируй валютную пару {symbol}.
-                Таймфрейм: {timeframe}.
-                Экспирация опциона: {expiration}.
-                Рынок открыт.
-                Используй стратегию: тренд по M30, вход по M5, VRVP, MA, уровни S/R, свечные паттерны.
-                Выдай точку входа и краткое обоснование.
-                """
-
-                try:
-                    response = openai.ChatCompletion.create(
-                        model="gpt-4o",
-                        messages=[
-                            {"role": "system", "content": "Ты торговый помощник по стратегии пользователя."},
-                            {"role": "user", "content": prompt}
-                        ],
-                        max_tokens=500,
-                        temperature=0.7
-                    )
-                    reply = response['choices'][0]['message']['content']
-                    send_telegram_message(f"📊 GPT-АНАЛИЗ:\n{reply}", chat_id)
-                except Exception as e:
-                    send_telegram_message(f"⚠️ GPT-ошибка:\n{str(e)}", chat_id)
-            else:
-                send_telegram_message("⚠️ Формат команды:\n/анализ EUR/USD M5 5мин", chat_id)
-
-    return 'OK', 200
-
-# === Запуск сервера (Render сам использует этот блок) ===
+# === Старт приложения ===
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
-
