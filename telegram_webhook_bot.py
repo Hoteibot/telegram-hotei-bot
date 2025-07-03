@@ -93,7 +93,7 @@ def telegram_webhook():
             show_strategy_category_menu(chat_id)
 
         elif text == "◀️ Назад":
-            show_settings_menu(chat_id)
+            show_main_menu(chat_id)
 
         elif text in SYMBOL_LIST:
             state['symbol'] = text
@@ -125,6 +125,8 @@ def telegram_webhook():
             show_settings_menu(chat_id)
 
         elif text == "▶️ Начать анализ":
+            summary = f"<b>Выбранные параметры:</b>\n\n📊 Стратегия: {state.get('strategy', 'не выбрана')}\n🕐 Таймфрейм: {state.get('timeframe', 'не выбран')}\n⏳ Экспирация: {state.get('expiration', 'не выбрана')}\n💱 Валюта: {state.get('symbol', 'не выбрана')}"
+            send_telegram_message(summary, chat_id)
             send_telegram_message("🔍 Выполняю анализ...", chat_id)
             run_gpt_analysis(chat_id)
 
@@ -167,7 +169,8 @@ def show_settings_menu(chat_id):
         "keyboard": [
             [{"text": "Выбор таймфрейма"}],
             [{"text": "Выбор экспирации"}],
-            [{"text": "Выбор стратегии"}]
+            [{"text": "Выбор стратегии"}],
+            [{"text": "◀️ Назад"}]
         ],
         "resize_keyboard": True
     }
