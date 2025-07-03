@@ -32,9 +32,9 @@ def load_strategies_by_gid(gid):
         with urllib.request.urlopen(url) as response:
             lines = [l.decode('utf-8') for l in response.readlines()]
             reader = csv.DictReader(lines)
-            return {row['Название']: row['Описание'] for row in reader}
+            return {row['Название']: row['Описание'] for row in reader if row.get('Название') and row.get('Описание')}
     except Exception as e:
-        return {"default": "тренд по M30, вход по M5, VRVP, MA, уровни S/R, свечные паттерны."}
+        return {}
 
 STRATEGIES = {}
 
@@ -96,7 +96,11 @@ def telegram_webhook():
             user_state.setdefault(chat_id, {})['strategy_category'] = text
             global STRATEGIES
             STRATEGIES = load_strategies_by_gid(SHEET_GIDS[text])
-            show_strategy_keyboard(chat_id)
+            if STRATEGIES:
+                show_strategy_keyboard(chat_id)
+            else:
+                send_telegram_message("⚠️ В этой категории пока нет доступных стратегий. Попробуй другую.", chat_id)
+                show_strategy_category_keyboard(chat_id)
 
         elif text in list(STRATEGIES.keys()):
             user_state.setdefault(chat_id, {})['strategy'] = text
