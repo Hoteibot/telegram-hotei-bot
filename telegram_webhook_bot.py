@@ -190,14 +190,16 @@ SYMBOL_LIST = [
 SESSION_LIST = ["Азиатская", "Европейская", "Американская"]
 
 # === Меню и кнопки ===
-# ... (оставшиеся функции без изменений)
+def show_main_menu(chat_id):
+    keyboard = {
+        "keyboard": [
+            [{"text": "⚙️ Настройки"}],
+            [{"text": "▶️ Начать анализ"}]
+        ],
+        "resize_keyboard": True
+    }
+    send_telegram_message("📋 Главное меню:", chat_id, reply_markup=keyboard)
 
-# === Render Index ===
-@app.route('/', methods=['GET'])
-def index():
-    return 'Бот работает', 200
-
-  # === Меню настройки ===
 def show_settings_menu(chat_id):
     keyboard = {
         "keyboard": [
@@ -211,7 +213,7 @@ def show_settings_menu(chat_id):
     send_telegram_message("⚙️ Настройки:", chat_id, reply_markup=keyboard)
 
 def show_symbol_menu(chat_id):
-    buttons = [[{"text": symbol}] for symbol in SYMBOL_LIST[:6]]
+    buttons = [[{"text": s1}, {"text": s2}] for s1, s2 in zip(SYMBOL_LIST[::2], SYMBOL_LIST[1::2])]
     keyboard = {"keyboard": buttons + [[{"text": "◀️ Назад"}]], "resize_keyboard": True}
     send_telegram_message("💱 Выбери валютную пару:", chat_id, reply_markup=keyboard)
 
@@ -259,7 +261,7 @@ def run_gpt_analysis(chat_id):
     Таймфрейм: {state.get('timeframe', 'не выбран')}
     Экспирация: {state.get('expiration', 'не выбрана')}
     Валюта: {state.get('symbol', 'не выбрана')}
-    
+
     Описание стратегии:
     {strategy_desc}
     """
@@ -280,6 +282,9 @@ def run_gpt_analysis(chat_id):
     except Exception as e:
         send_telegram_message(f"⚠️ Ошибка анализа:\n{str(e)}", chat_id)
 
+@app.route('/', methods=['GET'])
+def index():
+    return 'Бот работает', 200
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
