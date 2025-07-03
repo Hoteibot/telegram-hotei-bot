@@ -266,3 +266,40 @@ def index():
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
+
+@app.route('/tv-signal', methods=['POST'])
+def handle_tv_signal():
+    data = request.json
+    chat_id = os.environ.get("CHAT_ID")  # Можно заменить на ID канала или сделать рассылку
+
+    symbol = data.get("symbol", "EUR/USD")
+    signal_type = data.get("signal", "BUY")  # BUY или SELL
+    timeframe = data.get("timeframe", "M5")
+
+    # Стратегия по умолчанию
+    strategy_key = "Анализ по умолчанию"
+    strategy_text = STRATEGIES.get(strategy_key, "")
+
+    # Пример: анализ через GPT
+    prompt = f"""
+    Получен сигнал из TradingView: {signal_type} по валютной паре {symbol} на таймфрейме {timeframe}.
+    Используй стратегию: {strategy_text}.
+    Проанализируй, насколько сигнал оправдан. Подтверди или отклони.
+    """
+
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": "Ты торговый помощник. Анализируешь сигналы и даешь вывод."},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=400,
+            temperature=0.6
+        )
+        gpt_reply = response['choices'][0]['message']['content']
+        send_telegram_message(f"📥 <b>Сигнал от TradingView</b>\nПара: {symbol}\nСигнал: {signal_type}\nТФ: {timeframe}\n\n🧠 GPT мнение:\n{gpt_reply}", chat_id)
+        return 'OK', 200
+    except Exception as e:
+        send_telegram_message(f"⚠️ Ошибка при анализе сигнала из TV:\n{str(e)}", chat_id)
+        return 'Ошибка GPT', 500
