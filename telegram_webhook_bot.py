@@ -203,6 +203,7 @@ def show_main_menu(chat_id):
 def show_settings_menu(chat_id):
     keyboard = {
         "keyboard": [
+            [{"text": "Выбор валютной пары"}],
             [{"text": "Выбор таймфрейма"}],
             [{"text": "Выбор экспирации"}],
             [{"text": "Выбор стратегии"}],
@@ -210,6 +211,7 @@ def show_settings_menu(chat_id):
         ],
         "resize_keyboard": True
     }
+
     send_telegram_message("⚙️ Настройки:", chat_id, reply_markup=keyboard)
 
 def show_symbol_menu(chat_id):
