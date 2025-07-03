@@ -71,45 +71,58 @@ def telegram_webhook():
         chat_id = data['message']['chat']['id']
         text = data['message'].get('text', '')
 
+        state = user_state.setdefault(chat_id, {})
+
         if text == "/start":
-            user_state[chat_id] = {}
             send_telegram_message("Привет! Я Hotei-bot-Аналитик. Вы спрашиваете — я отвечаю. Жми на /start", chat_id)
-            show_symbol_keyboard(chat_id)
+            show_main_menu(chat_id)
+
+        elif text == "⚙️ Настройки":
+            show_settings_menu(chat_id)
+
+        elif text == "Выбор валютной пары":
+            show_symbol_menu(chat_id)
+
+        elif text == "Выбор таймфрейма":
+            show_timeframe_menu(chat_id)
+
+        elif text == "Выбор экспирации":
+            show_expiration_menu(chat_id)
+
+        elif text == "Выбор стратегии":
+            show_strategy_category_menu(chat_id)
 
         elif text in SYMBOL_LIST:
-            user_state.setdefault(chat_id, {})['symbol'] = text
-            show_timeframe_keyboard(chat_id)
+            state['symbol'] = text
+            send_telegram_message(f"✅ Валютная пара выбрана: {text}", chat_id)
 
         elif text in ["M1", "M5", "M15"]:
-            user_state.setdefault(chat_id, {})['timeframe'] = text
-            show_expiration_keyboard(chat_id)
+            state['timeframe'] = text
+            send_telegram_message(f"✅ Таймфрейм установлен: {text}", chat_id)
 
         elif text in ["3мин", "5мин", "7мин"]:
-            user_state.setdefault(chat_id, {})['expiration'] = text
-            show_session_keyboard(chat_id)
-
-        elif text in SESSION_LIST:
-            user_state.setdefault(chat_id, {})['session'] = text
-            show_strategy_category_keyboard(chat_id)
+            state['expiration'] = text
+            send_telegram_message(f"✅ Экспирация установлена: {text}", chat_id)
 
         elif text in SHEET_GIDS:
-            user_state.setdefault(chat_id, {})['strategy_category'] = text
+            state['strategy_category'] = text
             global STRATEGIES
             STRATEGIES = load_strategies_by_gid(SHEET_GIDS[text])
             if STRATEGIES:
                 show_strategy_keyboard(chat_id)
             else:
                 send_telegram_message("⚠️ В этой категории пока нет доступных стратегий. Попробуй другую.", chat_id)
-                show_strategy_category_keyboard(chat_id)
 
         elif text in list(STRATEGIES.keys()):
-            user_state.setdefault(chat_id, {})['strategy'] = text
+            state['strategy'] = text
+            send_telegram_message(f"✅ Стратегия установлена: {text}", chat_id)
+
+        elif text == "▶️ Начать анализ":
             send_telegram_message("🔍 Выполняю анализ...", chat_id)
             run_gpt_analysis(chat_id)
 
         elif text == "🔁 Новый запрос" or text == "Готов к новому анализу:":
-            user_state[chat_id] = {}
-            show_symbol_keyboard(chat_id)
+            show_symbol_menu(chat_id)
 
         else:
             keyboard = {
@@ -120,7 +133,7 @@ def telegram_webhook():
 
     return 'OK', 200
 
-# === Список валютных пар ===
+# === Списки для выбора ===
 SYMBOL_LIST = [
     "AUD/JPY", "AUD/CHF", "AUD/CAD", "AUD/USD",
     "GBP/CAD", "GBP/CHF", "GBP/AUD", "GBP/JPY", "GBP/USD",
@@ -129,57 +142,59 @@ SYMBOL_LIST = [
     "CAD/CHF", "CAD/JPY", "CHF/JPY"
 ]
 
-# === Список всех сессий ===
 SESSION_LIST = ["Азиатская", "Европейская", "Американская"]
 
-# === Показываем кнопки ===
-def show_symbol_keyboard(chat_id):
-    keyboard_rows = []
-    row = []
-    for i, symbol in enumerate(SYMBOL_LIST, 1):
-        row.append({"text": symbol})
-        if i % 3 == 0:
-            keyboard_rows.append(row)
-            row = []
-    if row:
-        keyboard_rows.append(row)
-
+# === Меню и кнопки ===
+def show_main_menu(chat_id):
     keyboard = {
-        "keyboard": keyboard_rows,
+        "keyboard": [
+            [{"text": "▶️ Начать анализ"}],
+            [{"text": "⚙️ Настройки"}]
+        ],
+        "resize_keyboard": True
+    }
+    send_telegram_message("Выбери действие:", chat_id, reply_markup=keyboard)
+
+def show_settings_menu(chat_id):
+    keyboard = {
+        "keyboard": [
+            [{"text": "Выбор таймфрейма"}],
+            [{"text": "Выбор экспирации"}],
+            [{"text": "Выбор стратегии"}]
+        ],
+        "resize_keyboard": True
+    }
+    send_telegram_message("Настройки:", chat_id, reply_markup=keyboard)
+
+def show_symbol_menu(chat_id):
+    buttons = [[{"text": pair}] for pair in SYMBOL_LIST]
+    keyboard = {
+        "keyboard": buttons,
         "resize_keyboard": True
     }
     send_telegram_message("Выбери валютную пару:", chat_id, reply_markup=keyboard)
 
-def show_timeframe_keyboard(chat_id):
+def show_timeframe_menu(chat_id):
     keyboard = {
         "keyboard": [[{"text": "M1"}, {"text": "M5"}, {"text": "M15"}]],
-        "one_time_keyboard": True,
         "resize_keyboard": True
     }
     send_telegram_message("Выбери таймфрейм:", chat_id, reply_markup=keyboard)
 
-def show_expiration_keyboard(chat_id):
+def show_expiration_menu(chat_id):
     keyboard = {
         "keyboard": [[{"text": "3мин"}, {"text": "5мин"}, {"text": "7мин"}]],
-        "one_time_keyboard": True,
         "resize_keyboard": True
     }
     send_telegram_message("Выбери время экспирации:", chat_id, reply_markup=keyboard)
 
-def show_session_keyboard(chat_id):
-    current_sessions = get_active_sessions()
+def show_strategy_category_menu(chat_id):
+    buttons = [[{"text": key}] for key in SHEET_GIDS.keys() if key != "Анализ по умолчанию"]
     keyboard = {
-        "keyboard": [[{"text": s}] for s in current_sessions],
+        "keyboard": buttons,
         "resize_keyboard": True
     }
-    send_telegram_message("Выбери торговую сессию:", chat_id, reply_markup=keyboard)
-
-def show_strategy_category_keyboard(chat_id):
-    keyboard = {
-        "keyboard": [[{"text": name}] for name in SHEET_GIDS.keys()],
-        "resize_keyboard": True
-    }
-    send_telegram_message("Выбери категорию стратегий:", chat_id, reply_markup=keyboard)
+    send_telegram_message("Выбери категорию стратегии:", chat_id, reply_markup=keyboard)
 
 def show_strategy_keyboard(chat_id):
     strategy_buttons = [[{"text": name}] for name in STRATEGIES.keys()]
@@ -189,13 +204,14 @@ def show_strategy_keyboard(chat_id):
     }
     send_telegram_message("Выбери стратегию анализа:", chat_id, reply_markup=keyboard)
 
-# === Запуск GPT анализа ===
+# === Анализ ===
 def run_gpt_analysis(chat_id):
     state = user_state.get(chat_id, {})
     symbol = state.get("symbol", "EUR/USD")
     timeframe = state.get("timeframe", "M5")
     expiration = state.get("expiration", "5мин")
-    session = state.get("session", "не указана")
+    session = get_active_sessions()
+    session = session[0] if session else "не определена"
     strategy_key = state.get("strategy", "default")
     strategy_text = STRATEGIES.get(strategy_key, STRATEGIES.get("default", ""))
 
@@ -228,14 +244,13 @@ def run_gpt_analysis(chat_id):
         send_telegram_message("Готов к новому анализу:", chat_id, reply_markup=keyboard)
     except Exception as e:
         send_telegram_message(f"⚠️ GPT-ошибка:\n{str(e)}", chat_id)
-        show_symbol_keyboard(chat_id)
+        show_main_menu(chat_id)
 
 # === Render Index ===
 @app.route('/', methods=['GET'])
 def index():
     return 'Бот работает', 200
 
-# === Старт приложения ===
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
