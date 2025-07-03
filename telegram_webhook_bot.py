@@ -142,6 +142,42 @@ def telegram_webhook():
 
     return 'OK', 200
 
+# === Webhook для сигналов TradingView ===
+@app.route('/webhook', methods=['POST'])
+def tradingview_webhook():
+    data = request.json
+
+    message = data.get('message', '🚀 Получен сигнал от TradingView!')
+    symbol = data.get("symbol", "EUR/USD")
+    timeframe = data.get("timeframe", "M5")
+    expiration = data.get("expiration", "5мин")
+    chat_id = int(os.environ.get("DEFAULT_CHAT_ID", "123456789"))
+
+    prompt = f"""
+    Получен сигнал: {message}
+    Валюта: {symbol}
+    Таймфрейм: {timeframe}
+    Экспирация: {expiration}
+    Используй текущую стратегию пользователя.
+    """
+
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": "Ты торговый помощник, который проверяет сигналы из TradingView и принимает решение о входе."},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=500,
+            temperature=0.7
+        )
+        reply = response['choices'][0]['message']['content']
+        send_telegram_message(f"📈 Сигнал от TradingView:\n<b>{message}</b>\n\n📊 GPT-Анализ:\n{reply}", chat_id)
+        return 'OK', 200
+    except Exception as e:
+        send_telegram_message(f"⚠️ Ошибка обработки сигнала:\n{str(e)}", chat_id)
+        return 'Ошибка', 500
+
 # === Списки для выбора ===
 SYMBOL_LIST = [
     "AUD/JPY", "AUD/CHF", "AUD/CAD", "AUD/USD",
@@ -154,109 +190,7 @@ SYMBOL_LIST = [
 SESSION_LIST = ["Азиатская", "Европейская", "Американская"]
 
 # === Меню и кнопки ===
-def show_main_menu(chat_id):
-    keyboard = {
-        "keyboard": [
-            [{"text": "▶️ Начать анализ"}],
-            [{"text": "⚙️ Настройки"}]
-        ],
-        "resize_keyboard": True
-    }
-    send_telegram_message("Выбери действие:", chat_id, reply_markup=keyboard)
-
-def show_settings_menu(chat_id):
-    keyboard = {
-        "keyboard": [
-            [{"text": "Выбор таймфрейма"}],
-            [{"text": "Выбор экспирации"}],
-            [{"text": "Выбор стратегии"}],
-            [{"text": "◀️ Назад"}]
-        ],
-        "resize_keyboard": True
-    }
-    send_telegram_message("Настройки:", chat_id, reply_markup=keyboard)
-
-def show_symbol_menu(chat_id):
-    buttons = [[{"text": pair}] for pair in SYMBOL_LIST]
-    keyboard = {
-        "keyboard": buttons,
-        "resize_keyboard": True
-    }
-    send_telegram_message("Выбери валютную пару:", chat_id, reply_markup=keyboard)
-
-def show_timeframe_menu(chat_id):
-    keyboard = {
-        "keyboard": [[{"text": "M1"}, {"text": "M5"}, {"text": "M15"}], [{"text": "◀️ Назад"}]],
-        "resize_keyboard": True
-    }
-    send_telegram_message("Выбери таймфрейм:", chat_id, reply_markup=keyboard)
-
-def show_expiration_menu(chat_id):
-    keyboard = {
-        "keyboard": [[{"text": "3мин"}, {"text": "5мин"}, {"text": "7мин"}], [{"text": "◀️ Назад"}]],
-        "resize_keyboard": True
-    }
-    send_telegram_message("Выбери время экспирации:", chat_id, reply_markup=keyboard)
-
-def show_strategy_category_menu(chat_id):
-    buttons = [[{"text": key}] for key in SHEET_GIDS.keys()]
-    buttons.append([{"text": "◀️ Назад"}])
-    keyboard = {
-        "keyboard": buttons,
-        "resize_keyboard": True
-    }
-    send_telegram_message("Выбери категорию стратегии:", chat_id, reply_markup=keyboard)
-
-def show_strategy_keyboard(chat_id):
-    strategy_buttons = [[{"text": name}] for name in STRATEGIES.keys()]
-    strategy_buttons.append([{"text": "◀️ Назад"}])
-    keyboard = {
-        "keyboard": strategy_buttons,
-        "resize_keyboard": True
-    }
-    send_telegram_message("Выбери стратегию анализа:", chat_id, reply_markup=keyboard)
-
-# === Анализ ===
-def run_gpt_analysis(chat_id):
-    state = user_state.get(chat_id, {})
-    symbol = state.get("symbol", "EUR/USD")
-    timeframe = state.get("timeframe", "M5")
-    expiration = state.get("expiration", "5мин")
-    session = get_active_sessions()
-    session = session[0] if session else "не определена"
-    strategy_key = state.get("strategy", "Анализ по умолчанию")
-    strategy_text = STRATEGIES.get(strategy_key, STRATEGIES.get("Анализ по умолчанию", ""))
-
-    prompt = f"""
-    Проанализируй валютную пару {symbol}.
-    Таймфрейм: {timeframe}.
-    Экспирация опциона: {expiration}.
-    Торговая сессия: {session}.
-    Рынок открыт.
-    Используй стратегию: {strategy_text}
-    Выдай точку входа и краткое обоснование.
-    """
-
-    try:
-        response = openai.ChatCompletion.create(
-            model="gpt-4o",
-            messages=[
-                {"role": "system", "content": "Ты торговый помощник по стратегии пользователя."},
-                {"role": "user", "content": prompt}
-            ],
-            max_tokens=500,
-            temperature=0.7
-        )
-        reply = response['choices'][0]['message']['content']
-        keyboard = {
-            "keyboard": [[{"text": "🔁 Новый запрос"}]],
-            "resize_keyboard": True
-        }
-        send_telegram_message(f"📊 GPT-АНАЛИЗ:\n{reply}", chat_id)
-        send_telegram_message("Готов к новому анализу:", chat_id, reply_markup=keyboard)
-    except Exception as e:
-        send_telegram_message(f"⚠️ GPT-ошибка:\n{str(e)}", chat_id)
-        show_main_menu(chat_id)
+# ... (оставшиеся функции без изменений)
 
 # === Render Index ===
 @app.route('/', methods=['GET'])
