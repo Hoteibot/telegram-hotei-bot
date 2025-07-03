@@ -2,6 +2,7 @@ from flask import Flask, request
 import requests
 import os
 import openai
+import json
 
 app = Flask(__name__)
 
@@ -10,6 +11,16 @@ openai.api_key = os.environ.get("OPENAI_API_KEY")
 
 # === Память для выбора пользователя ===
 user_state = {}
+
+# === Загрузка стратегий из JSON ===
+def load_strategies():
+    try:
+        with open("strategies.json", "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        return {"default": "тренд по M30, вход по M5, VRVP, MA, уровни S/R, свечные паттерны."}
+
+STRATEGIES = load_strategies()
 
 # === Отправка сообщения в Telegram с кнопками ===
 def send_telegram_message(message, chat_id, reply_markup=None):
@@ -51,6 +62,10 @@ def telegram_webhook():
 
         elif text in SESSION_LIST:
             user_state.setdefault(chat_id, {})['session'] = text
+            show_strategy_keyboard(chat_id)
+
+        elif text in list(STRATEGIES.keys()):
+            user_state.setdefault(chat_id, {})['strategy'] = text
             send_telegram_message("🔍 Выполняю анализ...", chat_id)
             run_gpt_analysis(chat_id)
 
@@ -120,6 +135,14 @@ def show_session_keyboard(chat_id):
     }
     send_telegram_message("Выбери торговую сессию:", chat_id, reply_markup=keyboard)
 
+def show_strategy_keyboard(chat_id):
+    strategy_buttons = [[{"text": name}] for name in STRATEGIES.keys()]
+    keyboard = {
+        "keyboard": strategy_buttons,
+        "resize_keyboard": True
+    }
+    send_telegram_message("Выбери стратегию анализа:", chat_id, reply_markup=keyboard)
+
 # === Запуск GPT анализа ===
 def run_gpt_analysis(chat_id):
     state = user_state.get(chat_id, {})
@@ -127,6 +150,8 @@ def run_gpt_analysis(chat_id):
     timeframe = state.get("timeframe", "M5")
     expiration = state.get("expiration", "5мин")
     session = state.get("session", "не указана")
+    strategy_key = state.get("strategy", "default")
+    strategy_text = STRATEGIES.get(strategy_key, STRATEGIES["default"])
 
     prompt = f"""
     Проанализируй валютную пару {symbol}.
@@ -134,7 +159,7 @@ def run_gpt_analysis(chat_id):
     Экспирация опциона: {expiration}.
     Торговая сессия: {session}.
     Рынок открыт.
-    Используй стратегию: тренд по M30, вход по M5, VRVP, MA, уровни S/R, свечные паттерны.
+    Используй стратегию: {strategy_text}
     Выдай точку входа и краткое обоснование.
     """
 
@@ -168,4 +193,3 @@ def index():
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
-
