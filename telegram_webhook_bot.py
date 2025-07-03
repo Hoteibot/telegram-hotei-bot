@@ -5,6 +5,7 @@ import openai
 import json
 import csv
 import urllib.request
+from datetime import datetime
 
 app = Flask(__name__)
 
@@ -48,6 +49,18 @@ def send_telegram_message(message, chat_id, reply_markup=None):
     if reply_markup:
         data["reply_markup"] = reply_markup
     requests.post(url, json=data)
+
+# === Вспомогательная функция — проверка текущей сессии ===
+def get_active_sessions():
+    now = datetime.utcnow().hour
+    sessions = []
+    if 0 <= now < 9:
+        sessions.append("Азиатская")
+    if 7 <= now < 17:
+        sessions.append("Европейская")
+    if 13 <= now < 22:
+        sessions.append("Американская")
+    return sessions
 
 # === Webhook Telegram ===
 @app.route('/telegram', methods=['POST'])
@@ -112,7 +125,7 @@ SYMBOL_LIST = [
     "CAD/CHF", "CAD/JPY", "CHF/JPY"
 ]
 
-# === Список сессий ===
+# === Список всех сессий ===
 SESSION_LIST = ["Азиатская", "Европейская", "Американская"]
 
 # === Показываем кнопки ===
@@ -150,8 +163,9 @@ def show_expiration_keyboard(chat_id):
     send_telegram_message("Выбери время экспирации:", chat_id, reply_markup=keyboard)
 
 def show_session_keyboard(chat_id):
+    current_sessions = get_active_sessions()
     keyboard = {
-        "keyboard": [[{"text": s}] for s in SESSION_LIST],
+        "keyboard": [[{"text": s}] for s in current_sessions],
         "resize_keyboard": True
     }
     send_telegram_message("Выбери торговую сессию:", chat_id, reply_markup=keyboard)
