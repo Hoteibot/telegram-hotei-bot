@@ -196,7 +196,7 @@ def show_expiration_menu(chat_id):
     send_telegram_message("Выбери время экспирации:", chat_id, reply_markup=keyboard)
 
 def show_strategy_category_menu(chat_id):
-    buttons = [[{"text": key}] for key in SHEET_GIDS.keys() if key != "Анализ по умолчанию"]
+    buttons = [[{"text": key}] for key in SHEET_GIDS.keys()]
     buttons.append([{"text": "◀️ Назад"}])
     keyboard = {
         "keyboard": buttons,
