@@ -3,6 +3,8 @@ import requests
 import os
 import openai
 import json
+import csv
+import urllib.request
 
 app = Flask(__name__)
 
@@ -12,15 +14,27 @@ openai.api_key = os.environ.get("OPENAI_API_KEY")
 # === Память для выбора пользователя ===
 user_state = {}
 
-# === Загрузка стратегий из JSON ===
-def load_strategies():
+# === ID и GID вкладок Google Sheets ===
+GOOGLE_SHEET_ID = "1p4rAh1zPKF-BHeLOXBqvUk7zSKb-ayz8BAtvzF9n1aQ"
+SHEET_GIDS = {
+    "Трендовая": "0",
+    "Контртрендовая": "1407798106",
+    "Диапазонная": "393811242",
+    "Hotei": "879338379"
+}
+
+# === Загрузка стратегий по GID вкладки ===
+def load_strategies_by_gid(gid):
     try:
-        with open("strategies.json", "r", encoding="utf-8") as f:
-            return json.load(f)
+        url = f"https://docs.google.com/spreadsheets/d/{GOOGLE_SHEET_ID}/export?format=csv&gid={gid}"
+        with urllib.request.urlopen(url) as response:
+            lines = [l.decode('utf-8') for l in response.readlines()]
+            reader = csv.DictReader(lines)
+            return {row['Название']: row['Описание'] for row in reader}
     except Exception as e:
         return {"default": "тренд по M30, вход по M5, VRVP, MA, уровни S/R, свечные паттерны."}
 
-STRATEGIES = load_strategies()
+STRATEGIES = {}
 
 # === Отправка сообщения в Telegram с кнопками ===
 def send_telegram_message(message, chat_id, reply_markup=None):
@@ -62,6 +76,12 @@ def telegram_webhook():
 
         elif text in SESSION_LIST:
             user_state.setdefault(chat_id, {})['session'] = text
+            show_strategy_category_keyboard(chat_id)
+
+        elif text in SHEET_GIDS:
+            user_state.setdefault(chat_id, {})['strategy_category'] = text
+            global STRATEGIES
+            STRATEGIES = load_strategies_by_gid(SHEET_GIDS[text])
             show_strategy_keyboard(chat_id)
 
         elif text in list(STRATEGIES.keys()):
@@ -135,6 +155,13 @@ def show_session_keyboard(chat_id):
     }
     send_telegram_message("Выбери торговую сессию:", chat_id, reply_markup=keyboard)
 
+def show_strategy_category_keyboard(chat_id):
+    keyboard = {
+        "keyboard": [[{"text": name}] for name in SHEET_GIDS.keys()],
+        "resize_keyboard": True
+    }
+    send_telegram_message("Выбери категорию стратегий:", chat_id, reply_markup=keyboard)
+
 def show_strategy_keyboard(chat_id):
     strategy_buttons = [[{"text": name}] for name in STRATEGIES.keys()]
     keyboard = {
@@ -151,7 +178,7 @@ def run_gpt_analysis(chat_id):
     expiration = state.get("expiration", "5мин")
     session = state.get("session", "не указана")
     strategy_key = state.get("strategy", "default")
-    strategy_text = STRATEGIES.get(strategy_key, STRATEGIES["default"])
+    strategy_text = STRATEGIES.get(strategy_key, STRATEGIES.get("default", ""))
 
     prompt = f"""
     Проанализируй валютную пару {symbol}.
