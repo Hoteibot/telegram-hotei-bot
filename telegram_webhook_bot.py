@@ -197,6 +197,90 @@ SESSION_LIST = ["Азиатская", "Европейская", "Америка�
 def index():
     return 'Бот работает', 200
 
+  # === Меню настройки ===
+def show_settings_menu(chat_id):
+    keyboard = {
+        "keyboard": [
+            [{"text": "Выбор таймфрейма"}],
+            [{"text": "Выбор экспирации"}],
+            [{"text": "Выбор стратегии"}],
+            [{"text": "◀️ Назад"}]
+        ],
+        "resize_keyboard": True
+    }
+    send_telegram_message("⚙️ Настройки:", chat_id, reply_markup=keyboard)
+
+def show_symbol_menu(chat_id):
+    buttons = [[{"text": symbol}] for symbol in SYMBOL_LIST[:6]]
+    keyboard = {"keyboard": buttons + [[{"text": "◀️ Назад"}]], "resize_keyboard": True}
+    send_telegram_message("💱 Выбери валютную пару:", chat_id, reply_markup=keyboard)
+
+def show_timeframe_menu(chat_id):
+    keyboard = {
+        "keyboard": [
+            [{"text": "M1"}, {"text": "M5"}, {"text": "M15"}],
+            [{"text": "◀️ Назад"}]
+        ],
+        "resize_keyboard": True
+    }
+    send_telegram_message("🕐 Выбери таймфрейм:", chat_id, reply_markup=keyboard)
+
+def show_expiration_menu(chat_id):
+    keyboard = {
+        "keyboard": [
+            [{"text": "3мин"}, {"text": "5мин"}, {"text": "7мин"}],
+            [{"text": "◀️ Назад"}]
+        ],
+        "resize_keyboard": True
+    }
+    send_telegram_message("⏳ Установи время экспирации:", chat_id, reply_markup=keyboard)
+
+def show_strategy_category_menu(chat_id):
+    keyboard = {
+        "keyboard": [[{"text": key}] for key in SHEET_GIDS.keys()] + [[{"text": "◀️ Назад"}]],
+        "resize_keyboard": True
+    }
+    send_telegram_message("📘 Выбери категорию стратегии:", chat_id, reply_markup=keyboard)
+
+def show_strategy_keyboard(chat_id):
+    keyboard = {
+        "keyboard": [[{"text": strategy}] for strategy in STRATEGIES.keys()] + [[{"text": "◀️ Назад"}]],
+        "resize_keyboard": True
+    }
+    send_telegram_message("📗 Доступные стратегии:", chat_id, reply_markup=keyboard)
+
+def run_gpt_analysis(chat_id):
+    state = user_state.get(chat_id, {})
+    strategy_desc = STRATEGIES.get(state.get("strategy", ""), "Нет описания")
+
+    prompt = f"""
+    Проанализируй следующую торговую ситуацию:
+    Стратегия: {state.get('strategy', 'не выбрана')}
+    Таймфрейм: {state.get('timeframe', 'не выбран')}
+    Экспирация: {state.get('expiration', 'не выбрана')}
+    Валюта: {state.get('symbol', 'не выбрана')}
+    
+    Описание стратегии:
+    {strategy_desc}
+    """
+
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": "Ты торговый помощник, который анализирует торговые стратегии."},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=500,
+            temperature=0.7
+        )
+        reply = response['choices'][0]['message']['content']
+        send_telegram_message(f"📊 GPT-Анализ:\n{reply}", chat_id)
+        send_telegram_message("🔁 Готов к новому анализу:", chat_id)
+    except Exception as e:
+        send_telegram_message(f"⚠️ Ошибка анализа:\n{str(e)}", chat_id)
+
+
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
