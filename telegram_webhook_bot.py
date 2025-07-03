@@ -47,6 +47,10 @@ def telegram_webhook():
 
         elif text in ["3мин", "5мин", "7мин"]:
             user_state.setdefault(chat_id, {})['expiration'] = text
+            show_session_keyboard(chat_id)
+
+        elif text in SESSION_LIST:
+            user_state.setdefault(chat_id, {})['session'] = text
             send_telegram_message("🔍 Выполняю анализ...", chat_id)
             run_gpt_analysis(chat_id)
 
@@ -72,9 +76,11 @@ SYMBOL_LIST = [
     "CAD/CHF", "CAD/JPY", "CHF/JPY"
 ]
 
+# === Список сессий ===
+SESSION_LIST = ["Азиатская", "Европейская", "Американская"]
+
 # === Показываем кнопки ===
 def show_symbol_keyboard(chat_id):
-    # Разбиваем валютные пары на 3 кнопки в строке
     keyboard_rows = []
     row = []
     for i, symbol in enumerate(SYMBOL_LIST, 1):
@@ -107,17 +113,26 @@ def show_expiration_keyboard(chat_id):
     }
     send_telegram_message("Выбери время экспирации:", chat_id, reply_markup=keyboard)
 
+def show_session_keyboard(chat_id):
+    keyboard = {
+        "keyboard": [[{"text": s}] for s in SESSION_LIST],
+        "resize_keyboard": True
+    }
+    send_telegram_message("Выбери торговую сессию:", chat_id, reply_markup=keyboard)
+
 # === Запуск GPT анализа ===
 def run_gpt_analysis(chat_id):
     state = user_state.get(chat_id, {})
     symbol = state.get("symbol", "EUR/USD")
     timeframe = state.get("timeframe", "M5")
     expiration = state.get("expiration", "5мин")
+    session = state.get("session", "не указана")
 
     prompt = f"""
     Проанализируй валютную пару {symbol}.
     Таймфрейм: {timeframe}.
     Экспирация опциона: {expiration}.
+    Торговая сессия: {session}.
     Рынок открыт.
     Используй стратегию: тренд по M30, вход по M5, VRVP, MA, уровни S/R, свечные паттерны.
     Выдай точку входа и краткое обоснование.
