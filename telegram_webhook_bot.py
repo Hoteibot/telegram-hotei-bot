@@ -92,17 +92,23 @@ def telegram_webhook():
         elif text == "Выбор стратегии":
             show_strategy_category_menu(chat_id)
 
+        elif text == "◀️ Назад":
+            show_settings_menu(chat_id)
+
         elif text in SYMBOL_LIST:
             state['symbol'] = text
             send_telegram_message(f"✅ Валютная пара выбрана: {text}", chat_id)
+            show_main_menu(chat_id)
 
         elif text in ["M1", "M5", "M15"]:
             state['timeframe'] = text
             send_telegram_message(f"✅ Таймфрейм установлен: {text}", chat_id)
+            show_settings_menu(chat_id)
 
         elif text in ["3мин", "5мин", "7мин"]:
             state['expiration'] = text
             send_telegram_message(f"✅ Экспирация установлена: {text}", chat_id)
+            show_settings_menu(chat_id)
 
         elif text in SHEET_GIDS:
             state['strategy_category'] = text
@@ -116,6 +122,7 @@ def telegram_webhook():
         elif text in list(STRATEGIES.keys()):
             state['strategy'] = text
             send_telegram_message(f"✅ Стратегия установлена: {text}", chat_id)
+            show_settings_menu(chat_id)
 
         elif text == "▶️ Начать анализ":
             send_telegram_message("🔍 Выполняю анализ...", chat_id)
@@ -176,20 +183,21 @@ def show_symbol_menu(chat_id):
 
 def show_timeframe_menu(chat_id):
     keyboard = {
-        "keyboard": [[{"text": "M1"}, {"text": "M5"}, {"text": "M15"}]],
+        "keyboard": [[{"text": "M1"}, {"text": "M5"}, {"text": "M15"}], [{"text": "◀️ Назад"}]],
         "resize_keyboard": True
     }
     send_telegram_message("Выбери таймфрейм:", chat_id, reply_markup=keyboard)
 
 def show_expiration_menu(chat_id):
     keyboard = {
-        "keyboard": [[{"text": "3мин"}, {"text": "5мин"}, {"text": "7мин"}]],
+        "keyboard": [[{"text": "3мин"}, {"text": "5мин"}, {"text": "7мин"}], [{"text": "◀️ Назад"}]],
         "resize_keyboard": True
     }
     send_telegram_message("Выбери время экспирации:", chat_id, reply_markup=keyboard)
 
 def show_strategy_category_menu(chat_id):
     buttons = [[{"text": key}] for key in SHEET_GIDS.keys() if key != "Анализ по умолчанию"]
+    buttons.append([{"text": "◀️ Назад"}])
     keyboard = {
         "keyboard": buttons,
         "resize_keyboard": True
@@ -198,6 +206,7 @@ def show_strategy_category_menu(chat_id):
 
 def show_strategy_keyboard(chat_id):
     strategy_buttons = [[{"text": name}] for name in STRATEGIES.keys()]
+    strategy_buttons.append([{"text": "◀️ Назад"}])
     keyboard = {
         "keyboard": strategy_buttons,
         "resize_keyboard": True
