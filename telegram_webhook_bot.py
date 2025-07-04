@@ -81,9 +81,7 @@ def format_signal(data):
 # === Запуск ===
 if __name__ == '__main__':
     import threading
-    threading.Thread(target=bot.infinity_polling, daemon=True).start()
-    app.run(host='0.0.0.0', port=10000)
-
+    bot.remove_webhook()
     threading.Thread(target=bot.infinity_polling, daemon=True).start()
     app.run(host='0.0.0.0', port=10000)
 
