@@ -84,4 +84,3 @@ if __name__ == '__main__':
     bot.remove_webhook()
     threading.Thread(target=bot.infinity_polling, daemon=True).start()
     app.run(host='0.0.0.0', port=10000)
-
