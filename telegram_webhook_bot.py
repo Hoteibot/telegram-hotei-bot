@@ -6,7 +6,7 @@ from flask import Flask, request
 import telebot
 
 # === Настройки ===
-BOT_TOKEN = 'YOUR_TELEGRAM_BOT_TOKEN'
+BOT_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 bot = telebot.TeleBot(BOT_TOKEN)
 USER_STATUS_FILE = 'user_status.json'
 
@@ -65,7 +65,7 @@ def webhook():
     for cid, cfg in user_status.items():
         if cfg.get("enabled"):
             try:
-                bot.send_message(cid, text)
+                bot.send_message(cid, text, parse_mode='Markdown')
             except Exception as e:
                 print(f"Ошибка отправки: {e}")
 
@@ -81,6 +81,9 @@ def format_signal(data):
 # === Запуск ===
 if __name__ == '__main__':
     import threading
+    threading.Thread(target=bot.infinity_polling, daemon=True).start()
+    app.run(host='0.0.0.0', port=10000)
+
     threading.Thread(target=bot.infinity_polling, daemon=True).start()
     app.run(host='0.0.0.0', port=10000)
 
