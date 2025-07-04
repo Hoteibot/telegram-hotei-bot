@@ -161,7 +161,7 @@ def tradingview_webhook():
     Используй текущую стратегию пользователя.
     """
 
-        try:
+    try:
         response = openai.ChatCompletion.create(
             model="gpt-4o",
             messages=[
@@ -174,7 +174,10 @@ def tradingview_webhook():
         reply = response['choices'][0]['message']['content']
         print("[DEBUG] Ответ GPT:", reply)
 
-        send_telegram_message(f"📈 Сигнал от TradingView:\n<b>{message}</b>\n\n📊 GPT-Анализ:\n{reply}", chat_id)
+        send_telegram_message(
+            f"📈 Сигнал от TradingView:\n<b>{message}</b>\n\n📊 GPT-Анализ:\n{reply}",
+            chat_id
+        )
         return 'OK', 200
     except Exception as e:
         print("[ERROR] GPT или Telegram отправка провалилась:", str(e))
