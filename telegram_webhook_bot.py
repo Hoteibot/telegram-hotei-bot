@@ -12,10 +12,8 @@ app = Flask(__name__)
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 openai.api_key = os.environ.get("OPENAI_API_KEY")
 
-# === Память для выбора пользователя ===
 user_state = {}
 
-# === ID и GID вкладок Google Sheets ===
 GOOGLE_SHEET_ID = "1p4rAh1zPKF-BHeLOXBqvUk7zSKb-ayz8BAtvzF9n1aQ"
 SHEET_GIDS = {
     "Трендовая": "0",
@@ -25,7 +23,6 @@ SHEET_GIDS = {
     "Анализ по умолчанию": "1281083042"
 }
 
-# === Загрузка стратегий по GID вкладки ===
 def load_strategies_by_gid(gid):
     try:
         url = f"https://docs.google.com/spreadsheets/d/{GOOGLE_SHEET_ID}/export?format=csv&gid={gid}"
@@ -38,7 +35,6 @@ def load_strategies_by_gid(gid):
 
 STRATEGIES = {}
 
-# === Отправка сообщения в Telegram с кнопками ===
 def send_telegram_message(message, chat_id, reply_markup=None):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     data = {
@@ -50,7 +46,6 @@ def send_telegram_message(message, chat_id, reply_markup=None):
         data["reply_markup"] = reply_markup
     requests.post(url, json=data)
 
-# === Вспомогательная функция — проверка текущей сессии ===
 def get_active_sessions():
     now = datetime.utcnow().hour
     sessions = []
@@ -62,7 +57,6 @@ def get_active_sessions():
         sessions.append("Американская")
     return sessions
 
-# === Webhook Telegram ===
 @app.route('/telegram', methods=['POST'])
 def telegram_webhook():
     data = request.json
@@ -165,8 +159,14 @@ def tradingview_webhook():
         response = openai.ChatCompletion.create(
             model="gpt-4o",
             messages=[
-                {"role": "system", "content": "Ты торговый помощник, который проверяет сигналы из TradingView и принимает решение о входе."},
-                {"role": "user", "content": prompt}
+                {
+                    "role": "system",
+                    "content": "Ты торговый помощник, который проверяет сигналы из TradingView и принимает решение о входе."
+                },
+                {
+                    "role": "user",
+                    "content": prompt
+                }
             ],
             max_tokens=500,
             temperature=0.7
@@ -184,18 +184,6 @@ def tradingview_webhook():
         send_telegram_message(f"⚠️ Ошибка обработки сигнала:\n{str(e)}", chat_id)
         return 'Ошибка', 500
 
-
-
-            temperature=0.7
-        )
-        reply = response['choices'][0]['message']['content']
-        send_telegram_message(f"📈 Сигнал от TradingView:\n<b>{message}</b>\n\n📊 GPT-Анализ:\n{reply}", chat_id)
-        return 'OK', 200
-    except Exception as e:
-        send_telegram_message(f"⚠️ Ошибка обработки сигнала:\n{str(e)}", chat_id)
-        return 'Ошибка', 500
-
-# === Списки для выбора ===
 SYMBOL_LIST = [
     "AUD/JPY", "AUD/CHF", "AUD/CAD", "AUD/USD",
     "GBP/CAD", "GBP/CHF", "GBP/AUD", "GBP/JPY", "GBP/USD",
@@ -206,7 +194,6 @@ SYMBOL_LIST = [
 
 SESSION_LIST = ["Азиатская", "Европейская", "Американская"]
 
-# === Меню и кнопки ===
 def show_main_menu(chat_id):
     keyboard = {
         "keyboard": [
@@ -228,7 +215,6 @@ def show_settings_menu(chat_id):
         ],
         "resize_keyboard": True
     }
-
     send_telegram_message("⚙️ Настройки:", chat_id, reply_markup=keyboard)
 
 def show_symbol_menu(chat_id):
