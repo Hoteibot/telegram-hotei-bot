@@ -162,24 +162,25 @@ def tradingview_webhook():
     """
 
     try:
-        response = openai.ChatCompletion.create(
-            model="gpt-4o",
-            messages=[
-                {"role": "system", "content": "Ты торговый помощник, который проверяет сигналы из TradingView и принимает решение о входе."},
-                {"role": "user", "content": prompt}
-            ],
-            max_tokens=500,
-            temperature=0.7
-        )
-        reply = response['choices'][0]['message']['content']
-        print("[DEBUG] Ответ GPT:", reply)
+    response = openai.ChatCompletion.create(
+        model="gpt-4o",
+        messages=[
+            {"role": "system", "content": "Ты торговый помощник, который проверяет сигналы из TradingView и принимает решение о входе."},
+            {"role": "user", "content": prompt}
+        ],
+        max_tokens=500,
+        temperature=0.7
+    )
+    reply = response['choices'][0]['message']['content']
+    print("[DEBUG] Ответ GPT:", reply)
 
-        send_telegram_message(f"📈 Сигнал от TradingView:\n<b>{message}</b>\n\n📊 GPT-Анализ:\n{reply}", chat_id)
-        return 'OK', 200
-    except Exception as e:
-        print("[ERROR] GPT или Telegram отправка провалилась:", str(e))
-        send_telegram_message(f"⚠️ Ошибка обработки сигнала:\n{str(e)}", chat_id)
-        return 'Ошибка', 500
+    send_telegram_message(f"📈 Сигнал от TradingView:\n<b>{message}</b>\n\n📊 GPT-Анализ:\n{reply}", chat_id)
+    return 'OK', 200
+except Exception as e:
+    print("[ERROR] GPT или Telegram отправка провалилась:", str(e))
+    send_telegram_message(f"⚠️ Ошибка обработки сигнала:\n{str(e)}", chat_id)
+    return 'Ошибка', 500
+
 
             temperature=0.7
         )
