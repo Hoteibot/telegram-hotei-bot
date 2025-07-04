@@ -54,6 +54,13 @@ def status(msg):
     state = user_status.get(cid, {}).get('enabled', False)
     bot.send_message(cid, f"\U0001F4AC Сигналы {'включены' if state else 'отключены'}.")
 
+# === Webhook от Telegram ===
+@app.route('/telegram', methods=['POST'])
+def telegram_webhook():
+    update = telebot.types.Update.de_json(request.stream.read().decode("utf-8"))
+    bot.process_new_updates([update])
+    return 'OK', 200
+
 # === Webhook от TradingView ===
 @app.route('/webhook', methods=['POST'])
 def webhook():
@@ -80,7 +87,6 @@ def format_signal(data):
 
 # === Запуск ===
 if __name__ == '__main__':
-    import threading
     bot.remove_webhook()
-    threading.Thread(target=bot.infinity_polling, daemon=True).start()
+    bot.set_webhook(url='https://your-domain.onrender.com/telegram')
     app.run(host='0.0.0.0', port=10000)
