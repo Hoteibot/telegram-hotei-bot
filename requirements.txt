@@ -1,4 +1,6 @@
 flask
 requests
 openai==0.28
+pyTelegramBotAPI
+flask
 
