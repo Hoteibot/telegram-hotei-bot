@@ -4,6 +4,7 @@ import json
 import os
 from flask import Flask, request
 import telebot
+from telebot import types
 
 # === Настройки ===
 BOT_TOKEN = os.environ.get("TELEGRAM_TOKEN")
@@ -32,16 +33,18 @@ def start(msg):
     cid = str(msg.chat.id)
     user_status[cid] = {'enabled': True}
     save_status()
-    bot.send_message(cid, "\U0001F4E2 Приём сигналов включён.")
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.row(types.KeyboardButton("▶️ ВКЛЮЧИТЬ"), types.KeyboardButton("⛔ ВЫКЛЮЧИТЬ"))
+    bot.send_message(cid, "📡 Бот активен. Используй кнопки для управления приёмом сигналов.", reply_markup=markup)
 
-@bot.message_handler(commands=['on'])
+@bot.message_handler(func=lambda msg: msg.text == "▶️ ВКЛЮЧИТЬ")
 def enable(msg):
     cid = str(msg.chat.id)
     user_status[cid] = {'enabled': True}
     save_status()
     bot.send_message(cid, "✅ Сигналы включены.")
 
-@bot.message_handler(commands=['off'])
+@bot.message_handler(func=lambda msg: msg.text == "⛔ ВЫКЛЮЧИТЬ")
 def disable(msg):
     cid = str(msg.chat.id)
     user_status[cid] = {'enabled': False}
@@ -52,7 +55,7 @@ def disable(msg):
 def status(msg):
     cid = str(msg.chat.id)
     state = user_status.get(cid, {}).get('enabled', False)
-    bot.send_message(cid, f"\U0001F4AC Сигналы {'включены' if state else 'отключены'}.")
+    bot.send_message(cid, f"💬 Сигналы {'включены' if state else 'отключены'}.")
 
 # === Webhook от Telegram ===
 @app.route('/telegram', methods=['POST'])
@@ -83,7 +86,7 @@ def format_signal(data):
     signal = data.get("signal", "")
     symbol = data.get("symbol", "?")
     tf = data.get("timeframe", "?")
-    return f"\U0001F514 Сигнал: *{signal.upper()}*\nИнструмент: `{symbol}`\nТаймфрейм: `{tf}`"
+    return f"🔔 Сигнал: *{signal.upper()}*\nИнструмент: `{symbol}`\nТаймфрейм: `{tf}`"
 
 # === Запуск ===
 if __name__ == '__main__':
