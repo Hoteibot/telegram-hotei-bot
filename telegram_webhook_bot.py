@@ -1,20 +1,19 @@
-# === telegram_webhook_bot.py ===
+# === Файл: telegram_webhook_bot.py ===
 
-import os
 import json
+import os
 from flask import Flask, request
 import telebot
 
-# === Конфигурация ===
+# === Настройки ===
 BOT_TOKEN = os.environ.get("TELEGRAM_TOKEN")
-WEBHOOK_URL = os.environ.get("WEBHOOK_URL")  # например: https://yourapp.onrender.com/telegram
+bot = telebot.TeleBot(BOT_TOKEN)
 USER_STATUS_FILE = 'user_status.json'
 
-# === Инициализация ===
-bot = telebot.TeleBot(BOT_TOKEN)
+# === Flask-приложение ===
 app = Flask(__name__)
 
-# === Загрузка и сохранение статуса пользователей ===
+# === Загрузка/Сохранение статуса пользователей ===
 def load_status():
     if os.path.exists(USER_STATUS_FILE):
         with open(USER_STATUS_FILE, 'r') as f:
@@ -27,34 +26,33 @@ def save_status():
 
 user_status = load_status()
 
-# === Telegram команды ===
+# === Telegram-команды ===
 @bot.message_handler(commands=['start'])
-def handle_start(msg):
+def start(msg):
     cid = str(msg.chat.id)
     user_status[cid] = {'enabled': True}
     save_status()
-    bot.send_message(cid, "📡 Приём сигналов включён. Используй /off чтобы отключить.")
+    bot.send_message(cid, "\U0001F4E2 Приём сигналов включён.")
 
 @bot.message_handler(commands=['on'])
-def handle_on(msg):
+def enable(msg):
     cid = str(msg.chat.id)
     user_status[cid] = {'enabled': True}
     save_status()
     bot.send_message(cid, "✅ Сигналы включены.")
 
 @bot.message_handler(commands=['off'])
-def handle_off(msg):
+def disable(msg):
     cid = str(msg.chat.id)
     user_status[cid] = {'enabled': False}
     save_status()
     bot.send_message(cid, "⛔ Сигналы отключены.")
 
 @bot.message_handler(commands=['status'])
-def handle_status(msg):
+def status(msg):
     cid = str(msg.chat.id)
-    state = user_status.get(cid, {}).get("enabled", False)
-    status = "включены ✅" if state else "отключены ⛔"
-    bot.send_message(cid, f"📊 Текущий статус: {status}")
+    state = user_status.get(cid, {}).get('enabled', False)
+    bot.send_message(cid, f"\U0001F4AC Сигналы {'включены' if state else 'отключены'}.")
 
 # === Webhook от Telegram ===
 @app.route('/telegram', methods=['POST'])
@@ -65,7 +63,7 @@ def telegram_webhook():
 
 # === Webhook от TradingView ===
 @app.route('/webhook', methods=['POST'])
-def tradingview_webhook():
+def webhook():
     data = request.get_json()
     if not data:
         return 'No data', 400
@@ -76,20 +74,19 @@ def tradingview_webhook():
             try:
                 bot.send_message(cid, text, parse_mode='Markdown')
             except Exception as e:
-                print(f"Ошибка при отправке в Telegram: {e}")
+                print(f"Ошибка отправки: {e}")
 
     return 'OK', 200
 
 # === Форматирование сигнала ===
 def format_signal(data):
-    signal = data.get("signal", "SIGNAL")
-    symbol = data.get("symbol", "UNKNOWN")
-    tf = data.get("timeframe", "M?")
-    return f"📈 *Сигнал*: `{signal}`\n💱 Инструмент: `{symbol}`\n🕒 Таймфрейм: `{tf}`"
+    signal = data.get("signal", "")
+    symbol = data.get("symbol", "?")
+    tf = data.get("timeframe", "?")
+    return f"\U0001F514 Сигнал: *{signal.upper()}*\nИнструмент: `{symbol}`\nТаймфрейм: `{tf}`"
 
-# === Запуск приложения ===
+# === Запуск ===
 if __name__ == '__main__':
     bot.remove_webhook()
-    bot.set_webhook(url=f'{WEBHOOK_URL}/telegram')
+    bot.set_webhook(url='https://telegram-hotei-bot.onrender.com/telegram')
     app.run(host='0.0.0.0', port=10000)
-
