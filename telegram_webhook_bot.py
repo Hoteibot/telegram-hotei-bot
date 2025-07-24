@@ -1,10 +1,11 @@
-# === Файл: telegram_webhook_bot.py ===
+# === telegram_webhook_bot.py ===
 
 import json
 import os
 from flask import Flask, request
 import telebot
 from telebot import types
+from datetime import datetime
 
 # === Настройки ===
 BOT_TOKEN = os.environ.get("TELEGRAM_TOKEN")
@@ -23,7 +24,7 @@ def load_status():
 
 def save_status():
     with open(USER_STATUS_FILE, 'w') as f:
-        json.dump(user_status, f)
+        json.dump(user_status, f, indent=2, ensure_ascii=False)
 
 user_status = load_status()
 
@@ -31,7 +32,11 @@ user_status = load_status()
 @bot.message_handler(commands=['start'])
 def start(msg):
     cid = str(msg.chat.id)
-    user_status[cid] = {'enabled': True}
+    user_status[cid] = {
+        "enabled": True,
+        "name": msg.from_user.full_name,
+        "joined": datetime.today().strftime('%Y-%m-%d')
+    }
     save_status()
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     markup.row(types.KeyboardButton("▶️ ВКЛЮЧИТЬ"), types.KeyboardButton("⛔ ВЫКЛЮЧИТЬ"))
@@ -40,22 +45,27 @@ def start(msg):
 @bot.message_handler(func=lambda msg: msg.text == "▶️ ВКЛЮЧИТЬ")
 def enable(msg):
     cid = str(msg.chat.id)
-    user_status[cid] = {'enabled': True}
-    save_status()
-    bot.send_message(cid, "✅ Сигналы включены.")
+    if cid in user_status:
+        user_status[cid]['enabled'] = True
+        save_status()
+        bot.send_message(cid, "✅ Сигналы включены.")
 
 @bot.message_handler(func=lambda msg: msg.text == "⛔ ВЫКЛЮЧИТЬ")
 def disable(msg):
     cid = str(msg.chat.id)
-    user_status[cid] = {'enabled': False}
-    save_status()
-    bot.send_message(cid, "⛔ Сигналы отключены.")
+    if cid in user_status:
+        user_status[cid]['enabled'] = False
+        save_status()
+        bot.send_message(cid, "⛔ Сигналы отключены.")
 
 @bot.message_handler(commands=['status'])
 def status(msg):
     cid = str(msg.chat.id)
-    state = user_status.get(cid, {}).get('enabled', False)
-    bot.send_message(cid, f"💬 Сигналы {'включены' if state else 'отключены'}.")
+    status = user_status.get(cid, {})
+    enabled = status.get('enabled', False)
+    name = status.get('name', 'Неизвестно')
+    joined = status.get('joined', '-')
+    bot.send_message(cid, f"👤 Пользователь: {name}\n📅 Присоединился: {joined}\n💬 Сигналы: {'включены' if enabled else 'отключены'}.")
 
 # === Webhook от Telegram ===
 @app.route('/telegram', methods=['POST'])
@@ -86,10 +96,11 @@ def format_signal(data):
     signal = data.get("signal", "")
     symbol = data.get("symbol", "?")
     tf = data.get("timeframe", "?")
-    return f"🔔 Сигнал: *{signal.upper()}*\nИнструмент: `{symbol}`\nТаймфрейм: `{tf}`"
+    return f"\ud83d\udd14 Сигнал: *{signal.upper()}*\nИнструмент: `{symbol}`\nТаймфрейм: `{tf}`"
 
 # === Запуск ===
 if __name__ == '__main__':
     bot.remove_webhook()
     bot.set_webhook(url='https://telegram-hotei-bot.onrender.com/telegram')
     app.run(host='0.0.0.0', port=10000)
+
