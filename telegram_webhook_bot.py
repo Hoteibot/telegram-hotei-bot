@@ -26,61 +26,57 @@ def save_status():
 
 user_status = load_status()
 
-# === Telegram-команды ===
-@bot.message_handler(commands=['start'])
-def start(msg):
+# === Обработка Telegram-сообщений (универсально) ===
+def handle_message(msg):
     cid = str(msg.chat.id)
+    text = msg.text
     name = msg.from_user.first_name or "Пользователь"
-    if cid not in user_status:
-        user_status[cid] = {
-            "enabled": True,
-            "name": name,
-            "joined": datetime.now().strftime("%Y-%m-%d")
-        }
-        print(f"✅ Новый пользователь зарегистрирован: {name} ({cid})")
-    else:
-        user_status[cid]["enabled"] = True
-        print(f"🔁 Пользователь повторно активировал бота: {name} ({cid})")
-    save_status()
+    print(f"📨 Получено сообщение от {cid}: {text}")
 
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.row(types.KeyboardButton("▶️ ВКЛЮЧИТЬ"), types.KeyboardButton("⛔ ВЫКЛЮЧИТЬ"))
+    if text.lower() == "/start":
+        if cid not in user_status:
+            user_status[cid] = {
+                "enabled": True,
+                "name": name,
+                "joined": datetime.now().strftime("%Y-%m-%d")
+            }
+            print(f"✅ Новый пользователь зарегистрирован: {name} ({cid})")
+        else:
+            user_status[cid]["enabled"] = True
+            print(f"🔁 Повторный запуск бота: {name} ({cid})")
+        save_status()
 
-    bot.send_message(cid, "📡 Бот активен. Используй кнопки для управления приёмом сигналов.", reply_markup=markup)
+        markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+        markup.row(types.KeyboardButton("▶️ ВКЛЮЧИТЬ"), types.KeyboardButton("⛔ ВЫКЛЮЧИТЬ"))
+        bot.send_message(cid, "📡 Бот активен. Используй кнопки для управления приёмом сигналов.", reply_markup=markup)
 
-@bot.message_handler(func=lambda msg: msg.text == "▶️ ВКЛЮЧИТЬ")
-def enable(msg):
-    cid = str(msg.chat.id)
-    if cid in user_status:
+    elif text == "▶️ ВКЛЮЧИТЬ":
         user_status[cid]["enabled"] = True
         save_status()
-        print(f"▶️ Сигналы включены для {cid}")
         bot.send_message(cid, "✅ Сигналы включены.")
 
-@bot.message_handler(func=lambda msg: msg.text == "⛔ ВЫКЛЮЧИТЬ")
-def disable(msg):
-    cid = str(msg.chat.id)
-    if cid in user_status:
+    elif text == "⛔ ВЫКЛЮЧИТЬ":
         user_status[cid]["enabled"] = False
         save_status()
-        print(f"⛔ Сигналы отключены для {cid}")
         bot.send_message(cid, "⛔ Сигналы отключены.")
 
-@bot.message_handler(commands=['status'])
-def status(msg):
-    cid = str(msg.chat.id)
-    cfg = user_status.get(cid)
-    if cfg:
-        state = "включены ✅" if cfg.get("enabled") else "отключены ⛔"
-        bot.send_message(cid, f"💬 Сигналы {state}.")
+    elif text.lower() == "/status":
+        cfg = user_status.get(cid)
+        if cfg:
+            state = "включены ✅" if cfg.get("enabled") else "отключены ⛔"
+            bot.send_message(cid, f"💬 Сигналы {state}.")
+        else:
+            bot.send_message(cid, "❗ Вы ещё не зарегистрированы. Введите /start")
+
     else:
-        bot.send_message(cid, "❗ Вы ещё не зарегистрированы. Введите /start")
+        bot.send_message(cid, "🤖 Я Вас не понял. Используйте кнопки или команды /start /status.")
 
 # === Webhook от Telegram ===
 @app.route('/telegram', methods=['POST'])
 def telegram_webhook():
     update = telebot.types.Update.de_json(request.stream.read().decode("utf-8"))
-    bot.process_new_updates([update])
+    if update.message:
+        handle_message(update.message)
     return 'OK', 200
 
 # === Webhook от TradingView ===
@@ -119,6 +115,4 @@ if __name__ == '__main__':
     bot.remove_webhook()
     bot.set_webhook(url='https://telegram-hotei-bot.onrender.com/telegram')
     print("🚀 Бот запущен и webhook установлен.")
-    app.run(host='0.0.0.0', port=10000)
-
 
